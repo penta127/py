@@ -4,13 +4,33 @@ def ft_inventory_system():
 
     players["Alice"].update({
         "sword": {"type": "weapon", "rarity": "rare", "qty": 1, "value": 500},
-        "potion": {"type": "consumable", "rarity": "common", "qty": 5, "value": 50},
-        "shield": {"type": "armor", "rarity": "uncommon", "qty": 1, "value": 200}
+        "potion": {
+            "type": "consumable",
+            "rarity": "common",
+            "qty": 5,
+            "value": 50
+        },
+        "shield": {
+            "type": "armor",
+            "rarity": "uncommon",
+            "qty": 1,
+            "value": 200
+        }
     })
 
     players["Bob"].update({
-        "potion": {"type": "consumable", "rarity": "common", "qty": 0, "value": 50},
-        "magic_ring": {"type": "accessory", "rarity": "rare", "qty": 1, "value": 300}
+        "potion": {
+            "type": "consumable",
+            "rarity": "common",
+            "qty": 0,
+            "value": 50
+        },
+        "magic_ring": {
+            "type": "accessory",
+            "rarity": "rare",
+            "qty": 1,
+            "value": 300
+        }
     })
 
     print("=== Player Inventory System ===")
@@ -32,7 +52,9 @@ def ft_inventory_system():
         item_total = item_total + qty
         categories[item_type] = categories.get(item_type, 0) + qty
 
-        print(f"{item_name} ({item_type}, {rarity}): {qty}x @ {value} gold each = {total} gold")
+        print(
+            f"{item_name} ({item_type}, {rarity}): {qty}x @ "
+            f"{value} gold each = {total} gold")
     print()
     print(f"Inventory value: {total_value} gold")
     print(f"Item count: {item_total} items")

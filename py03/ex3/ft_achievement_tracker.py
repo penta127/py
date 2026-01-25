@@ -2,7 +2,13 @@
 def ft_achievement_tracker():
     alice = set(("first_kill", "level_10", "treasure_hunter", "speed_demon"))
     bob = set(("first_kill", "level_10", "boss_slayer", "collector"))
-    charlie = set(("level_10", "treasure_hunter", "boss_slayer", "speed_demon", "perfectionist"))
+    charlie = set((
+        "level_10",
+        "treasure_hunter",
+        "boss_slayer",
+        "speed_demon",
+        "perfectionist"
+    ))
 
     all_unique = alice.union(bob).union(charlie)
     common_to_all = alice.intersection(bob).intersection(charlie)
@@ -11,8 +17,6 @@ def ft_achievement_tracker():
     rare_bob = bob.difference(alice.union(charlie))
     rare_charlie = charlie.difference(alice.union(bob))
     rare_all = rare_alice.union(rare_bob).union(rare_charlie)
-
-
 
     print("=== Achievement Tracker System ===")
     print()

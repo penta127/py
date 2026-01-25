@@ -1,9 +1,12 @@
 import sys
 
+
 def ft_score_analytics():
     print("=== Player Score Analytics ===")
     if len(sys.argv) == 1:
-        print("No scores provided. Usage: python3 ft_score_analytics.py <score1> <score2> ...")
+        print(
+            "No scores provided. Usage: python3 "
+            "ft_score_analytics.py <score1> <score2> ...")
         return
     try:
         scores = []
@@ -21,6 +24,6 @@ def ft_score_analytics():
     except ValueError:
         print("No scores provided. Usage: NO INT!!")
         return
-    
-if __name__ == "__main__":
-    ft_score_analytics()
+
+# if __name__ == "__main__":
+#    ft_score_analytics()

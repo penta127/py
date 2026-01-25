@@ -1,5 +1,6 @@
 import math
 
+
 def position_created():
     text = "10,20,5"
     parts = text.split(",")
@@ -37,6 +38,7 @@ def parsing_coor():
     print(f"Distance between {origin} and {pos}: {result}")
     return pos
 
+
 def parsing_error():
     try:
         text = "abc,def,ghi"
@@ -44,6 +46,7 @@ def parsing_error():
         x = int(parts[0])
         y = int(parts[1])
         z = int(parts[2])
+        print(f"{x},{y},{z}")
     except ValueError as e:
         print('Parsing invalid coordinates: "abc,def,ghi"')
         print(f"Error parsing coordinates: {e}")
@@ -58,7 +61,6 @@ def unpacking_demo(pos):
     print(f"Coordinates: X={x}, Y={y}, Z={z}")
 
 
-
 def ft_coordinate_system():
     print("=== Game Coordinate System ===")
     print()
@@ -70,5 +72,5 @@ def ft_coordinate_system():
     print()
     unpacking_demo(pos)
 
-if __name__ == "__main__":
-    ft_coordinate_system()
+# if __name__ == "__main__":
+#    ft_coordinate_system()

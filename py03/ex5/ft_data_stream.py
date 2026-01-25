@@ -1,14 +1,16 @@
 import time
 
+
 def gene_eve(num):
     players = ["alice", "bob", "charlie"]
     kinds = ["killed monster", "found treasure", "leveled up"]
 
     for i in range(num):
         player = players[i % len(players)]
-        level = (i % 20) + 1            
-        kind = kinds[i % len(kinds)]     
+        level = (i % 20) + 1
+        kind = kinds[i % len(kinds)]
         yield player, level, kind
+
 
 def fibonacci_wr():
     a = 0
@@ -30,6 +32,7 @@ def primes_wr():
             yield n
         n += 1
 
+
 def first_n_str(gen_func, n):
     it = iter(gen_func())
     out = ""
@@ -39,6 +42,7 @@ def first_n_str(gen_func, n):
             out += ", "
         out += str(val)
     return out
+
 
 def ft_data_stream():
     start = time.time()
@@ -82,7 +86,6 @@ def ft_data_stream():
     print("Fibonacci sequence (first 10): " + first_n_str(fibonacci_wr, 10))
     print("Prime numbers (first 5): " + first_n_str(primes_wr, 5))
 
-    
 
-if __name__ == "__main__":
-    ft_data_stream()
+# if __name__ == "__main__":
+#    ft_data_stream()

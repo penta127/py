@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 
-def crisis_helper(filename, routine):
+def crisis_helper(filename, routine) -> None:
     if routine:
         print(f"ROUTINE ACCESS: Attempting access to '{filename}'...")
     else:
@@ -7,7 +8,6 @@ def crisis_helper(filename, routine):
     try:
         with open(filename, "r") as file:
             data = file.read()
-        
         print(f"SUCCESS: Archive recovered - ''{data}''")
         print("STATUS: Normal operations resumed")
 
@@ -24,22 +24,21 @@ def crisis_helper(filename, routine):
         print("STATUS: Crisis handled, system stable")
 
 
-
-
 def ft_crisis_response():
     filename1 = "lost_archive.txt"
     filename2 = "classified_vault.txt"
     filename3 = "standard_archive.txt"
     print("=== CYBER ARCHIVES - CRISIS RESPONSE SYSTEM ===")
     print()
-    crisis_helper(filename1, routine = False)
+    crisis_helper(filename1, routine=False)
     print()
-    crisis_helper(filename2, routine = False)
+    crisis_helper(filename2, routine=False)
     print()
-    crisis_helper(filename3, routine = True)
+    crisis_helper(filename3, routine=True)
 
     print()
     print("All crisis scenarios handled successfully. Archives secure.")
+
 
 if __name__ == "__main__":
     ft_crisis_response()

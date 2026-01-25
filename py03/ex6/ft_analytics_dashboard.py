@@ -1,13 +1,33 @@
 def ft_analytics_dashboard():
     players = [
-        {"name": "alice", "score": 2300, "active": True,  "region": "north",
-        "achievements": ["first_kill", "level_10"]},
-        {"name": "bob", "score": 1800, "active": True,  "region": "east",
-        "achievements": ["first_kill"]},
-        {"name": "charlie", "score": 2150, "active": True, "region": "central",
-        "achievements": ["level_10", "boss_slayer"]},
-        {"name": "diana", "score": 2050, "active": False, "region": "north",
-        "achievements": ["first_kill", "boss_slayer"]},
+        {
+            "name": "alice",
+            "score": 2300,
+            "active": True,
+            "region": "north",
+            "achievements": ["first_kill", "level_10"],
+        },
+        {
+            "name": "bob",
+            "score": 1800,
+            "active": True,
+            "region": "east",
+            "achievements": ["first_kill"],
+        },
+        {
+            "name": "charlie",
+            "score": 2150,
+            "active": True,
+            "region": "central",
+            "achievements": ["level_10", "boss_slayer"],
+        },
+        {
+            "name": "diana",
+            "score": 2050,
+            "active": False,
+            "region": "north",
+            "achievements": ["first_kill", "boss_slayer"],
+        },
     ]
 
     print("=== Game Analytics Dashboard ===")
@@ -57,8 +77,10 @@ def ft_analytics_dashboard():
     print(f"Total players: {total_players}")
     print(f"Total unique achievements: {total_unique_achievements}")
     print(f"Average score: {average_score}")
-    print(f"Top performer: {top_name} ({top_score} points, {top_ach} achievements)")
+    print(
+        f"Top performer: {top_name} ({top_score} points, "
+        f"{top_ach} achievements)")
 
 
-if __name__ == "__main__":
-    ft_analytics_dashboard()
+# if __name__ == "__main__":
+#    ft_analytics_dashboard()

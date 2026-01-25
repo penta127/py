@@ -1,5 +1,6 @@
 import sys
 
+
 def ft_command_quest():
     print("=== Command Quest ===")
     if len(sys.argv) == 1:
