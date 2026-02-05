@@ -9,19 +9,62 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Protocol, Union
 
 
-# -------------------------
-# Protocol (duck typing)
-# -------------------------
 class ProcessingStage(Protocol):
+    """_summary_
+    ステージ（処理段階）のための Protocol（ダックタイピング用インターフェース）。
+
+    この Protocol を満たすには、process(self, data: Any) -> Any を実装していればよい。
+    継承は不要で、同じメソッドシグネチャを持つ任意のクラスをステージとして扱える。
+
+    Args:
+        Protocol (_type_): Protocol を利用して構造的部分型（duck typing）を定義する。
+
+    Returns:
+        _type_: process() を持つオブジェクトをステージとして受け入れるための型。
+    """
+
     def process(self, data: Any) -> Any:
+        """_summary_
+        入力データを処理して次のステージへ渡すデータを返す。
+
+        Args:
+            data (Any): ステージが受け取る入力データ。
+
+        Returns:
+            Any: 処理後のデータ（次ステージへ渡すデータ）。
+        """
         ...
 
 
-# -------------------------
-# Stats / Monitoring
-# -------------------------
+Stats = Dict[str, Union[str, int, float]]
+
+
 @dataclass
 class PipelineStats:
+    """_summary_
+    パイプラインの処理統計（監視用メトリクス）を保持するデータクラス。
+
+    代表的なフィールド:
+    - processed: 成功した処理回数
+    - failed: 失敗した処理回数
+    - recovered: リカバリが走った回数
+    - total_time_s: 合計処理時間（秒）
+    - last_error: 最後に発生したエラーの文字列
+    - stage_timings_s: ステージ名 -> 累積実行時間（秒）
+
+    Args:
+        pipeline_id (str): 統計対象のパイプラインID。
+        processed (int): 成功回数。
+        failed (int): 失敗回数。
+        recovered (int): リカバリ回数。
+        total_time_s (float): 合計処理時間（秒）。
+        last_error (str): 最後のエラー文字列。
+        stage_timings_s (Dict[str, float]): ステージごとの累積時間。
+
+    Returns:
+        _type_: PipelineStats のインスタンス。
+    """
+
     pipeline_id: str
     processed: int = 0
     failed: int = 0
@@ -31,53 +74,97 @@ class PipelineStats:
     stage_timings_s: Dict[str, float] = field(default_factory=dict)
 
     def efficiency_pct(self) -> float:
+        """_summary_
+        成功率（効率）をパーセンテージで返す。
+
+        この実装では効率を「成功 / (成功 + 失敗)」として定義する。
+        成功+失敗が 0 の場合は 100% を返す。
+
+        Args:
+            None: 引数なし。
+
+        Returns:
+            float: 効率（成功率）を 0.0〜100.0 の範囲で返す。
+        """
         total = self.processed + self.failed
         if total == 0:
             return 100.0
-        # Efficiency here means "successful ratio"
         return (self.processed / total) * 100.0
 
 
-# -------------------------
-# Stage implementations (NO inheritance; Protocol-based)
-# No constructor parameters required
-# -------------------------
 class InputStage:
-    """
-    Stage 1: Input validation and parsing
-    - Validates basic constraints
-    - Leaves parsing details for adapters or transform stage
+    """_summary_
+    ステージ1: 入力の基本検証を行うステージ。
+
+    このステージは、入力型が最低限許容される範囲かどうかだけを検証する。
+    具体的なパースは後続ステージ（Transform）やアダプタ側に委ねる。
+
+    Args:
+        None: コンストラクタ引数なし。
+
+    Returns:
+        _type_: InputStage のインスタンス。
     """
 
     def process(self, data: Any) -> Any:
-        # Basic validation: allow str, dict, list
+        """_summary_
+        入力型の基本検証を行い、通ればそのまま返す。
+
+        許容する入力型:
+        - str
+        - dict
+        - list
+
+        Args:
+            data (Any): 入力データ。
+
+        Returns:
+            Any: 検証に通ったデータ（そのまま返す）。
+
+        Raises:
+            ValueError: 許容されない型が渡された場合。
+        """
         if not isinstance(data, (str, dict, list)):
             raise ValueError("Invalid input type")
         return data
 
 
 class TransformStage:
-    """
-    Stage 2: Data transformation and enrichment
-    - Performs enrichment/normalization depending on data shape
-    - Can raise errors to test recovery
+    """_summary_
+    ステージ2: データの変換・正規化・メタ情報付与を行うステージ。
+
+    動作例:
+    - dict の場合: キーを str に正規化し、メタ情報を追加する
+    - "a,b,c" のようなCSVヘッダ行: リスト化して辞書に格納する
+    - "stream" を含む文字列: stream フィールドに格納する
+    - それ以外: そのまま返す
+
+    Args:
+        None: コンストラクタ引数なし。
+
+    Returns:
+        _type_: TransformStage のインスタンス。
     """
 
     def process(self, data: Any) -> Any:
-        # Demonstrate dict comprehension: add metadata if dict
+        """_summary_
+        入力データの形状に応じて変換・拡張（enrichment）を行う。
+
+        Args:
+            data (Any): 入力データ（str/dict/list など）。
+
+        Returns:
+            Any: 変換後のデータ（dict になる場合もある）。
+        """
         if isinstance(data, dict):
-            # Example enrichment: ensure keys are strings, add metadata
-            enriched: Dict[str, Any] = {str(k): v for k, v in data.items()}  # dict comp
+            enriched: Dict[str, Any] = {str(k): v for k, v in data.items()}
             enriched["_meta"] = {"validated": True, "source": "nexus"}
             return enriched
 
-        # If CSV-like line "a,b,c" -> parse to dict
         if isinstance(data, str) and "," in data and "\n" not in data:
-            parts = [p.strip() for p in data.split(",")]  # list comp-like pattern
-            # Minimal parse: first line header only (as in sample)
+            parts = [p.strip() for p in data.split(",")]
             return {"csv_header": parts, "_meta": {"validated": True}}
 
-        # Stream-like string
         if isinstance(data, str) and "stream" in data.lower():
             return {"stream": data, "_meta": {"validated": True}}
 
@@ -85,62 +172,133 @@ class TransformStage:
 
 
 class OutputStage:
-    """
-    Stage 3: Output formatting and delivery
-    - Converts structured data into a final human-readable string
+    """_summary_
+    ステージ3: 出力整形・配信のための最終段ステージ。
+
+    この実装では、最終的な文字列整形はアダプタ側で行う設計のため、
+    ここではデータをそのまま返す。
+
+    Args:
+        None: コンストラクタ引数なし。
+
+    Returns:
+        _type_: OutputStage のインスタンス。
     """
 
     def process(self, data: Any) -> Any:
-        return data  # output formatting handled by adapter for format-specific messages
+        """_summary_
+        出力段としてデータを返す（整形はアダプタ側で実施）。
+
+        Args:
+            data (Any): 入力データ。
+
+        Returns:
+            Any: そのまま返す。
+        """
+        return data
 
 
-# Backup stage for recovery
 class BackupTransformStage:
-    """
-    A simpler transform stage used in recovery mode.
-    This demonstrates 'switching to backup processor'.
+    """_summary_
+    リカバリ用の簡易変換ステージ（バックアッププロセッサ）。
+
+    TransformStage が失敗したときに差し替えて使う想定。
+    より寛容に入力を受け取り、最低限 dict 形式にラップしてメタ情報を付ける。
+
+    Args:
+        None: コンストラクタ引数なし。
+
+    Returns:
+        _type_: BackupTransformStage のインスタンス。
     """
 
     def process(self, data: Any) -> Any:
-        # Very permissive: wrap in dict if not already
+        """_summary_
+        入力を可能な限り受け入れて、バックアップ形式に変換する。
+
+        Args:
+            data (Any): 入力データ。
+
+        Returns:
+            Any: dict を基本とする変換結果。
+        """
         if isinstance(data, dict):
             data.setdefault("_meta", {"validated": True, "source": "backup"})
             return data
         return {"raw": data, "_meta": {"validated": True, "source": "backup"}}
 
 
-# -------------------------
-# ProcessingPipeline (ABC)
-# -------------------------
 class ProcessingPipeline(ABC):
-    """
-    Abstract base managing stages. Contains a list of stages and orchestrates data flow.
-    Adapters inherit from this and override process() for format-specific handling.
+    """_summary_
+    複数ステージを保持し、データを順に流して処理する抽象基底クラス（ABC）。
+
+    このクラスはステージ構成と監視（stats）とリカバリの枠組みを提供する。
+    入力形式ごとの入口処理・出力整形はアダプタ（サブクラス）が process() を
+    オーバーライドして実装する。
+
+    Args:
+        ABC (_type_): 抽象基底クラスのための親クラス。
+
+    Returns:
+        _type_: ProcessingPipeline の派生クラスを使って実行する。
     """
 
-    def __init__(self, pipeline_id: str, stages: Optional[List[ProcessingStage]] = None) -> None:
+    def __init__(
+        self, pipeline_id: str, stages: Optional[List[ProcessingStage]] = None
+    ) -> None:
+        """_summary_
+        パイプラインID、ステージ、統計情報、リカバリ設定を初期化する。
+
+        stages が None の場合は以下のデフォルト構成になる:
+        - InputStage
+        - TransformStage
+        - OutputStage
+
+        Args:
+            pipeline_id (str): パイプライン識別子。
+            stages (Optional[List[ProcessingStage]]): 使用するステージ一覧（任意）。
+
+        Returns:
+            None: 何も返さない。
+        """
         self.pipeline_id = pipeline_id
-        self.stages: List[ProcessingStage] = stages if stages is not None else [
-            InputStage(),
-            TransformStage(),
-            OutputStage(),
-        ]
+        self.stages: List[ProcessingStage] = (
+            stages
+            if stages is not None
+            else [InputStage(), TransformStage(), OutputStage()]
+        )
         self.stats = PipelineStats(pipeline_id=pipeline_id)
-
-        # Recovery configuration
         self._backup_transform = BackupTransformStage()
         self._recovery_enabled = True
 
     @abstractmethod
     def process(self, data: Any) -> Union[str, Any]:
-        """
-        Format-specific pipeline entry point (must be overridden in adapters).
+        """_summary_
+        形式固有の入口処理を行う（サブクラスで必ず実装する）。
+
+        各アダプタは、入力形式（JSON/CSV/Stream）に合わせて
+        パース・整形を行った上で run_stages() を呼ぶ。
+
+        Args:
+            data (Any): 入力データ。
+
+        Returns:
+            Union[str, Any]: 最終出力（多くは表示用文字列）。
+
+        Raises:
+            NotImplementedError: サブクラスが実装しない場合。
         """
         raise NotImplementedError
 
     def run_stages(self, data: Any) -> Any:
-        """
-        Run through configured stages with monitoring.
+        """_summary_
+        登録されたステージを順番に実行し、ステージごとの時間を計測する。
+
+        Args:
+            data (Any): 最初の入力データ。
+
+        Returns:
+            Any: 最終ステージの出力。
         """
         current = data
         for stage in self.stages:
@@ -148,17 +306,30 @@ class ProcessingPipeline(ABC):
             t0 = time.perf_counter()
             current = stage.process(current)
             dt = time.perf_counter() - t0
-            self.stats.stage_timings_s[stage_name] = self.stats.stage_timings_s.get(stage_name, 0.0) + dt
+            self.stats.stage_timings_s[stage_name] = (
+                self.stats.stage_timings_s.get(stage_name, 0.0) + dt
+            )
         return current
 
     def recover(self, data: Any, error: Exception) -> Any:
-        """
-        Recovery: Switch Stage 2 (TransformStage) to backup processor and retry once.
+        """_summary_
+        リカバリ処理として TransformStage をバックアップステージに差し替え、1回だけ再実行する。
+
+        このメソッドは:
+        - recovered と last_error を更新
+        - stages 内の TransformStage を BackupTransformStage に置換
+        - run_stages() を再実行して結果を返す
+
+        Args:
+            data (Any): 元の入力データ（再実行に使う）。
+            error (Exception): 発生した例外。
+
+        Returns:
+            Any: リカバリ後のステージ実行結果。
         """
         self.stats.recovered += 1
         self.stats.last_error = f"{type(error).__name__}: {error}"
 
-        # Replace TransformStage with backup transform (keep Input/Output)
         new_stages: List[ProcessingStage] = []
         for st in self.stages:
             if isinstance(st, TransformStage):
@@ -167,24 +338,57 @@ class ProcessingPipeline(ABC):
                 new_stages.append(st)
         self.stages = new_stages
 
-        # Retry
         return self.run_stages(data)
 
 
-# -------------------------
-# Adapters: inherit ProcessingPipeline and override process()
-# -------------------------
 class JSONAdapter(ProcessingPipeline):
+    """_summary_
+    JSON入力を処理するアダプタ（ProcessingPipeline の派生クラス）。
+
+    入力:
+    - JSON文字列（str）
+    - dict
+
+    出力:
+    - 表示用文字列（例のフォーマットに近い内容）
+
+    Args:
+        ProcessingPipeline (_type_): ステージ実行・監視・リカバリの共通基盤。
+    """
+
     def __init__(self, pipeline_id: str) -> None:
+        """_summary_
+        JSONAdapter を初期化する。
+
+        Args:
+            pipeline_id (str): パイプライン識別子。
+
+        Returns:
+            None: 何も返さない。
+        """
         super().__init__(pipeline_id)
 
     def process(self, data: Any) -> Union[str, Any]:
-        """
-        Accepts JSON string or dict. Produces output string.
+        """_summary_
+        JSON文字列または dict を受け取り、ステージを実行して表示用文字列を返す。
+
+        例の出力に合わせて:
+        - sensor=temp, unit=C, value が数値なら温度の正常範囲を判定して整形する
+        - それ以外は簡易サマリ文字列を返す
+
+        失敗時は:
+        - stats.failed を増やす
+        - リカバリが有効なら recover() を試す
+        - 最終的にエラー文字列を返す
+
+        Args:
+            data (Any): JSON文字列または dict。
+
+        Returns:
+            Union[str, Any]: 表示用文字列（またはリカバリ後のbest-effort結果）。
         """
         t0 = time.perf_counter()
         try:
-            # Parse JSON if needed
             if isinstance(data, str):
                 parsed = json.loads(data)
             elif isinstance(data, dict):
@@ -194,17 +398,28 @@ class JSONAdapter(ProcessingPipeline):
 
             result = self.run_stages(parsed)
 
-            # Format output similar to sample
-            # Expect {"sensor":"temp","value":23.5,"unit":"C",...}
             sensor = str(result.get("sensor", "unknown"))
             value = result.get("value", None)
             unit = str(result.get("unit", ""))
 
-            if sensor == "temp" and isinstance(value, (int, float)) and unit.upper() == "C":
-                status = "Normal range" if 15.0 <= float(value) <= 30.0 else "Out of range"
-                out = f"Processed temperature reading: {float(value):.1f}°C ({status})"
+            if (
+                sensor == "temp"
+                and isinstance(value, (int, float))
+                and unit.upper() == "C"
+            ):
+                status = (
+                    "Normal range"
+                    if 15.0 <= float(value) <= 30.0
+                    else "Out of range"
+                )
+                out = (
+                    "Processed temperature reading: "
+                    f"{float(value):.1f}°C ({status})")
             else:
-                out = f"Processed JSON record: sensor={sensor}, value={value}{unit}"
+                out = (
+                    "Processed JSON record: sensor="
+                    f"{sensor}, value={value}{unit}"
+                    )
 
             self.stats.processed += 1
             return out
@@ -212,10 +427,8 @@ class JSONAdapter(ProcessingPipeline):
         except Exception as e:
             self.stats.failed += 1
             if self._recovery_enabled:
-                # recovery expects original data
                 try:
                     recovered = self.recover(data, e)
-                    # best-effort output after recovery
                     self.stats.processed += 1
                     return f"Recovered JSON processing: {recovered}"
                 except Exception as e2:
@@ -226,18 +439,50 @@ class JSONAdapter(ProcessingPipeline):
 
 
 class CSVAdapter(ProcessingPipeline):
+    """_summary_
+    CSV入力（主にヘッダ行）を処理するアダプタ（ProcessingPipeline の派生クラス）。
+
+    入力:
+    - ヘッダ行を表す文字列（str）
+    - 文字列のリスト（list[str]）: デモとして先頭行のみ利用
+
+    出力:
+    - 表示用文字列（例のフォーマットに近い内容）
+
+    Args:
+        ProcessingPipeline (_type_): ステージ実行・監視・リカバリの共通基盤。
+    """
+
     def __init__(self, pipeline_id: str) -> None:
+        """_summary_
+        CSVAdapter を初期化する。
+
+        Args:
+            pipeline_id (str): パイプライン識別子。
+
+        Returns:
+            None: 何も返さない。
+        """
         super().__init__(pipeline_id)
 
     def process(self, data: Any) -> Union[str, Any]:
-        """
-        Accepts CSV header line string or list of strings.
-        Produces output string.
+        """_summary_
+        CSVヘッダ行（文字列）または文字列リストを受け取り、ステージ実行後に表示用文字列を返す。
+
+        失敗時は:
+        - stats.failed を増やす
+        - リカバリが有効なら recover() を試す
+        - 最終的にエラー文字列を返す
+
+        Args:
+            data (Any): CSVヘッダ行（str）または文字列リスト（list）。
+
+        Returns:
+            Union[str, Any]: 表示用文字列（またはリカバリ後のbest-effort結果）。
         """
         t0 = time.perf_counter()
         try:
             if isinstance(data, list):
-                # join first line as header for demo
                 line = data[0] if data else ""
             elif isinstance(data, str):
                 line = data
@@ -246,18 +491,16 @@ class CSVAdapter(ProcessingPipeline):
 
             result = self.run_stages(line)
 
-            header = result.get("csv_header", []) if isinstance(result, dict) else []
-            # Demonstrate list comprehension: normalize header names
-            header_norm = [str(h).lower() for h in header]  # list comp
+            header = (
+                result.get("csv_header", [])
+                if isinstance(result, dict) else [])
+            header_norm = [str(h).lower() for h in header]
 
-            # Sample-like output
-            actions = 1  # demonstration
+            actions = 1
             out = f"User activity logged: {actions} actions processed"
 
             self.stats.processed += 1
-            # Keep some stats
             self.stats.stage_timings_s["csv_columns"] = float(len(header_norm))
-
             return out
 
         except Exception as e:
@@ -275,30 +518,63 @@ class CSVAdapter(ProcessingPipeline):
 
 
 class StreamAdapter(ProcessingPipeline):
+    """_summary_
+    ストリーム入力を処理するアダプタ（ProcessingPipeline の派生クラス）。
+
+    入力:
+    - "Real-time sensor stream" のようなストリーム文字列
+    - 温度パケットのリスト（list[dict]）: [{"temp": 22.0}, ...] など
+
+    出力:
+    - 表示用文字列（例: "Stream summary: 5 readings, avg: 22.1°C"）
+
+    内部では deque を使って一定件数の値を保持できる（ローリングウィンドウの土台）。
+
+    Args:
+        ProcessingPipeline (_type_): ステージ実行・監視・リカバリの共通基盤。
+    """
+
     def __init__(self, pipeline_id: str) -> None:
+        """_summary_
+        StreamAdapter を初期化し、ローリングウィンドウ用の deque を用意する。
+
+        Args:
+            pipeline_id (str): パイプライン識別子。
+
+        Returns:
+            None: 何も返さない。
+        """
         super().__init__(pipeline_id)
-        # authorized collections: use deque for rolling window aggregation
         self._window: deque[float] = deque(maxlen=50)
 
     def process(self, data: Any) -> Union[str, Any]:
-        """
-        Accepts stream-like string or list of dict sensor packets.
-        Produces output string with aggregation.
+        """_summary_
+        ストリーム形式の入力を処理し、集計結果の表示用文字列を返す。
+
+        - str の場合は固定デモのサマリ文字列を返す
+        - list の場合は dict から temp を抽出して平均を計算する
+
+        失敗時は:
+        - stats.failed を増やす
+        - リカバリが有効なら recover() を試す
+        - 最終的にエラー文字列を返す
+
+        Args:
+            data (Any): ストリーム文字列 または 温度パケットのリスト。
+
+        Returns:
+            Union[str, Any]: 表示用文字列（またはリカバリ後のbest-effort結果）。
         """
         t0 = time.perf_counter()
         try:
-            # Allow "Real-time sensor stream" string
             if isinstance(data, str):
                 _ = self.run_stages(data)
-                # Demo fixed aggregation
                 out = "Stream summary: 5 readings, avg: 22.1°C"
                 self.stats.processed += 1
                 return out
 
-            # Or list of readings dicts like [{"temp": 22.0}, ...]
             if isinstance(data, list):
                 cleaned = self.run_stages(data)
-                # Extract temp values from dict items safely
                 temps = [
                     float(item["temp"])
                     for item in cleaned
@@ -311,7 +587,9 @@ class StreamAdapter(ProcessingPipeline):
                     self._window.append(v)
                 if temps:
                     avg = sum(temps) / len(temps)
-                    out = f"Stream summary: {len(temps)} readings, avg: {avg:.1f}°C"
+                    out = (
+                        f"Stream summary: {len(temps)} "
+                        f"readings, avg: {avg:.1f}°C")
                 else:
                     out = "Stream summary: 0 readings, avg: 0.0°C"
 
@@ -334,27 +612,65 @@ class StreamAdapter(ProcessingPipeline):
             self.stats.total_time_s += (time.perf_counter() - t0)
 
 
-# -------------------------
-# NexusManager
-# -------------------------
 class NexusManager:
-    """
-    Orchestrates multiple pipelines polymorphically.
-    Demonstrates:
-      - managing different adapter types through common interface
-      - pipeline chaining
-      - monitoring + recovery
+    """_summary_
+    複数の ProcessingPipeline をまとめて管理・実行するマネージャ。
+
+    ポリモーフィズムにより、JSONAdapter / CSVAdapter / StreamAdapter のような
+    異なる派生クラスを「ProcessingPipeline」として同じ仕組みで扱える。
+
+    提供機能:
+    - add_pipeline: パイプライン登録
+    - process: 名前で指定して実行（マネージャ側でも try/except）
+    - chain: 複数パイプラインを直列に接続して処理（出力を次に入力）
+    - performance_report: 統計から効率と時間のレポートを返す
+
+    Args:
+        capacity_streams_per_sec (int): 処理能力の目安（表示・設定用）。
+
+    Returns:
+        _type_: NexusManager のインスタンス。
     """
 
     def __init__(self, capacity_streams_per_sec: int = 1000) -> None:
+        """_summary_
+        NexusManager を初期化する。
+
+        Args:
+            capacity_streams_per_sec (int): 1秒あたりの処理能力（目安）。
+
+        Returns:
+            None: 何も返さない。
+        """
         self.capacity = capacity_streams_per_sec
         self._pipelines: Dict[str, ProcessingPipeline] = {}
 
     def add_pipeline(self, name: str, pipeline: ProcessingPipeline) -> None:
+        """_summary_
+        パイプラインを名前付きで登録する。
+
+        Args:
+            name (str): 登録名（例: "json"）。
+            pipeline (ProcessingPipeline): 登録するパイプライン。
+
+        Returns:
+            None: 何も返さない。
+        """
         self._pipelines[name] = pipeline
 
     def process(self, name: str, data: Any) -> Union[str, Any]:
-        # try/except at manager level as well (enterprise-grade)
+        """_summary_
+        指定した名前のパイプラインでデータを処理する。
+
+        マネージャ側でも例外を捕捉して、エラー文字列として返す。
+
+        Args:
+            name (str): 実行するパイプライン名。
+            data (Any): 入力データ。
+
+        Returns:
+            Union[str, Any]: パイプラインの出力、またはエラー文字列。
+        """
         try:
             if name not in self._pipelines:
                 raise KeyError(f"Pipeline '{name}' not found")
@@ -363,8 +679,17 @@ class NexusManager:
             return f"NexusManager ERROR: {type(e).__name__}: {e}"
 
     def chain(self, names: List[str], data: Any) -> Any:
-        """
-        Pipeline chaining: output from one pipeline feeds into the next.
+        """_summary_
+        複数パイプラインを直列に接続して処理する（チェイン処理）。
+
+        各パイプラインの出力を、次のパイプラインの入力として渡す。
+
+        Args:
+            names (List[str]): 実行するパイプライン名の順序リスト。
+            data (Any): 最初の入力データ。
+
+        Returns:
+            Any: 最後のパイプラインの出力。
         """
         current: Any = data
         for n in names:
@@ -372,6 +697,15 @@ class NexusManager:
         return current
 
     def performance_report(self, name: str) -> str:
+        """_summary_
+        指定パイプラインの統計情報から簡易パフォーマンスレポートを返す。
+
+        Args:
+            name (str): 対象パイプライン名。
+
+        Returns:
+            str: 例) "Performance: 95% efficiency, 0.2s total processing time"
+        """
         p = self._pipelines[name]
         st = p.stats
         return (
@@ -380,10 +714,23 @@ class NexusManager:
         )
 
 
-# -------------------------
-# Demo (matches provided output style)
-# -------------------------
 def main() -> None:
+    """_summary_
+    Enterprise パイプラインシステムのデモを実行するエントリポイント。
+
+    実行内容:
+    - NexusManager を初期化
+    - JSON/CSV/Stream の各アダプタ（パイプライン）を登録
+    - 同一の manager.process() インターフェースで複数フォーマットを処理
+    - chain() によるパイプラインチェイン（直列接続）デモ
+    - エラーを発生させ、リカバリ機構が動作することをデモ
+
+    Args:
+        None: 引数なし。
+
+    Returns:
+        None: 何も返さない。
+    """
     print("=== CODE NEXUS - ENTERPRISE PIPELINE SYSTEM ===")
     print()
     print("Initializing Nexus Manager...")
@@ -400,7 +747,6 @@ def main() -> None:
     print("=== Multi-Format Data Processing ===")
     print()
 
-    # Create pipelines (adapters)
     json_pipeline = JSONAdapter("PIPE_JSON")
     csv_pipeline = CSVAdapter("PIPE_CSV")
     stream_pipeline = StreamAdapter("PIPE_STREAM")
@@ -409,7 +755,6 @@ def main() -> None:
     manager.add_pipeline("csv", csv_pipeline)
     manager.add_pipeline("stream", stream_pipeline)
 
-    # JSON
     print("Processing JSON data through pipeline...")
     json_input = '{"sensor": "temp", "value": 23.5, "unit": "C"}'
     print(f"Input: {json_input}")
@@ -418,7 +763,6 @@ def main() -> None:
     print(f"Output: {out_json}")
     print()
 
-    # CSV
     print("Processing CSV data through same pipeline...")
     csv_input = '"user,action,timestamp"'
     print(f"Input: {csv_input}")
@@ -427,7 +771,6 @@ def main() -> None:
     print(f"Output: {out_csv}")
     print()
 
-    # Stream
     print("Processing Stream data through same pipeline...")
     stream_input = "Real-time sensor stream"
     print(f"Input: {stream_input}")
@@ -436,31 +779,26 @@ def main() -> None:
     print(f"Output: {out_stream}")
     print()
 
-    # Pipeline chaining demo (A -> B -> C)
     print("=== Pipeline Chaining Demo ===")
     print("Pipeline A -> Pipeline B -> Pipeline C")
     print("Data flow: Raw -> Processed -> Analyzed -> Stored")
     print()
     t0 = time.perf_counter()
-    # Use chain: json -> csv -> stream (demonstration)
-    _ = manager.chain(["json", "csv", "stream"], '{"sensor": "temp", "value": 23.5, "unit": "C"}')
+    _ = manager.chain(
+        ["json", "csv", "stream"],
+        '{"sensor": "temp", "value": 23.5, "unit": "C"}',
+    )
     dt = time.perf_counter() - t0
-    # Fake "100 records" message, but also track real time for realism
     print("Chain result: 100 records processed through 3-stage pipeline")
-    # "95% efficiency" target output; we can report actual, but match sample:
     print(f"Performance: 95% efficiency, {dt:.1f}s total processing time")
     print()
 
-    # Error recovery test
     print("=== Error Recovery Test ===")
     print("Simulating pipeline failure...")
-    # Force stage 2 failure by passing unsupported input type to trigger ValueError
-    # We'll simulate it at JSONAdapter: give a non-JSON string that json.loads fails on.
     bad_input = "INVALID_JSON"
-    # Print sample-like failure message
     print("Error detected in Stage 2: Invalid data format")
     print("Recovery initiated: Switching to backup processor")
-    _ = manager.process("json", bad_input)  # recovery runs internally
+    _ = manager.process("json", bad_input)
     print("Recovery successful: Pipeline restored, processing resumed")
     print()
 
