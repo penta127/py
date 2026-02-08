@@ -807,3 +807,21 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+@dataclass
+class PipelineStats:
+    pipeline_id: str
+    processed: int = 0
+    failed: int = 0
+    recovered: int = 0
+    total_time_s: float = 0.0
+    last_error: str = ""
+    stage_timings_s: Dict[str, float] = field(default_factory=dict)
+
+    def efficiency_pct(self) -> float:
+        total = self.processed + self.failed
+        if total == 0:
+            return 100.0
+        # Efficiency here means "successful ratio"
+        return (self.processed / total) * 100.0
