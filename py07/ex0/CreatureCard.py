@@ -21,6 +21,7 @@ class CreatureCard(Card):
 
         return play_dict
 
+
     def attack_target(self, target) -> dict:
         attack_dict = {
             "attacker" : self._name,
